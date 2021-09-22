@@ -59,8 +59,7 @@ def data_generator(Q1, Q2, batch_size, pad=1, shuffle=True):
         # append q2
         input2.append(q2)
         if len(input1) == batch_size:
-            # determine max_len as the longest question in input1 & input 2
-            # take max of input1 & input2 and then max out of the two of them.
+            # determine max_len as the longest question in input1 & input 
             max_len =max(max([len(q) for q in input1]),
                           max([len(q) for q in input2]))
             # pad to power-of-2 
@@ -119,26 +118,17 @@ def TripletLossFn(v1, v2, margin=0.25):
     Returns:
         jax.interpreters.xla.DeviceArray: Triplet Loss.
     """
-    # use fastnp to take the dot product of the two batches (don't forget to transpose the second argument)
     scores = fastnp.dot(v1,v2.T)  # pairwise cosine sim
     # calculate new batch size
     batch_size = len(scores)
     # use fastnp to grab all postive `diagonal` entries in `scores`
     positive = fastnp.diagonal(scores)  # the positive ones (duplicates)
-    # multiply `fastnp.eye(batch_size)` with 2.0 and subtract it out of `scores`
-    negative_without_positive = scores-fastnp.eye(batch_size)*2
-    # take the row by row `max` of `negative_without_positive`. 
-    # Hint: negative_without_positive.max(axis = [?])  
+    negative_without_positive = scores-fastnp.eye(batch_size)*2 
     closest_negative = negative_without_positive.max(axis = 1)
-    # subtract `fastnp.eye(batch_size)` out of 1.0 and do element-wise multiplication with `scores`
-    negative_zero_on_duplicate = (1-fastnp.eye(batch_size))*scores
-    # use `fastnp.sum` on `negative_zero_on_duplicate` for `axis=1` and divide it by `(batch_size - 1)` 
+    negative_zero_on_duplicate = (1-fastnp.eye(batch_size))*scores 
     mean_negative = fastnp.sum(negative_zero_on_duplicate,axis=1)/(batch_size - 1)
-    # compute `fastnp.maximum` among 0.0 and `A`
     triplet_loss1 = fastnp.maximum(0.0, margin - positive + closest_negative)
-    # compute `fastnp.maximum` among 0.0 and `B`
     triplet_loss2 = fastnp.maximum(0.0, margin - positive+ mean_negative)
-    # add the two losses together and take the `fastnp.mean` of it
     triplet_loss = fastnp.mean(triplet_loss1+triplet_loss2)
     
     return triplet_loss
